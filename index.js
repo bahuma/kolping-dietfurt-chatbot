@@ -223,7 +223,13 @@ function receivedMessage(event) {
             if (!error && response.statusCode == 200) {
                 let termine = JSON.parse(body);
                 sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
-                sendTermine(senderID, termine);
+                
+                if (matchesArray(text, 'mehr')) {
+                    sendTermine(senderID, termine, 100, 5);
+                } else {
+                    sendTermine(senderID, termine);    
+                }
+                
                 typing(senderID, 'off');
             } else {
                 console.log('error getting termine from kolping-dietfurt api');
@@ -252,7 +258,15 @@ function receivedMessage(event) {
     }
 }
 
-function sendTermine(recipientID, termine) {
+function sendTermine(recipientID, termine, limit, start) {
+    if (!limit) {
+        limit = 5;
+    }
+    
+    if (!start) {
+        start = 0;
+    }
+    
     let messageData = {
         recipient: {
             id: recipientID
@@ -268,9 +282,18 @@ function sendTermine(recipientID, termine) {
         }
     };
     
+    if (start !== 0) {
+        messageData.message.quick_replies = [
+            {
+                content_type: "text",
+                title: "Zeige mir mehr Termine",
+                payload: "TEST"
+            }
+        ];
+    }
+    
     termine.forEach(function(termin, index) {
-        // Limit to 5 entries
-        if (index < 5) {
+        if (index < limit && index >= start) {
             var terminEntry = {
                 title: termin.title,
                 subtitle: termin.date,
