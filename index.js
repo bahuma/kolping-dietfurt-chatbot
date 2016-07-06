@@ -132,6 +132,27 @@ function sendTextMessage(recipientId, messageText) {
 }
 
 
+function typing(recipientID, what) {
+    request({
+    uri: 'https://graph.facebook.com/v2.6/me/messages',
+    qs: { access_token: PAGE_ACCESS_TOKEN },
+    method: 'POST',
+    json: {
+        recipient: {
+            id: recipientID
+        },
+        sender_action: "typing_" + what
+    }, function (error, response, body) {
+      if (error) {
+          console.error("unable to start typing");
+          console.error(response);
+          console.error(error);
+      }
+    }
+  });
+}
+
+
 
 /*
  * Call the Send API. The message data goes in the body. If successful, we'll 
@@ -164,7 +185,6 @@ function matchesArray(message, keywords) {
     let found = false;
     
     keywords.forEach(function(keyword) {
-        console.log(keyword, message.indexOf(keyword));
         if (message.indexOf(keyword) !== -1) {
             found = true;
         }
@@ -178,23 +198,25 @@ function receivedMessage(event) {
     var recipientID = event.recipient.id;
     var timeOfMessage = event.timestamp;
     var message = event.message;
-    console.log('received message');
+    console.log('received message: "' + message.text + '"');
     
     var text = message.text.toLowerCase();
     
     if (matchesArray(text, ['termine', 'veranstaltungen', 'events', 'geplant', 'steht an'])) {
         console.log('termine received');
+        
+        typing(senderID, 'on');
+        
         request('https://kolping-dietfurt.de/api/termine', function(error, response, body){
             if (!error && response.statusCode == 200) {
                 let termine = JSON.parse(body);
                 sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
-                sendTermine(senderID, termine)
+                sendTermine(senderID, termine);
+                typing(senderID, 'off');
             }
         })
         
     }
-
-    console.log(message);
 }
 
 function sendTermine(recipientID, termine) {
