@@ -135,16 +135,33 @@ function verifyRequestSignature(req, res, buf) {
 }
 
 
+let currentUserDialogs = {};
+
 function receivedPostback(event) {
     var senderID = event.sender.id;
     var recipientID = event.recipient.id;
     var timeOfPostback = event.timestamp;
     var payload = event.postback.payload;
+    console.log('received postback', payload);
     
-    if (payload.action == "zeltlageranmeldung") {
-        sendTextMessage(senderID, "Ok. Dazu brauchen wir einige Daten. Sag uns doch bitte zuerst den Vornamen der Person die du anmelden möchten.");
+    if (currentUserDialogs.hasOwnProperty(senderID)) {
+        handleDialog(senderID, payload);
+        return;
+    } else {
+        if (payload == "zeltlageranmeldung") {
+            currentUserDialogs[senderID] = {
+                action: "zeltlager",
+                step: "first_name",
+                first_name: "",
+                last_name: "",
+                age: "",
+                schwimmer: ""
+            };
+            
+            sendTextMessage(senderID, "Ok. Dazu brauchen wir einige Daten. Sag uns doch bitte zuerst den Vornamen der Person die du anmelden möchten.");
+        }
     }
-}
+};
 
 /*
  * Send a text message using the Send API.
@@ -225,6 +242,62 @@ function matchesArray(message, keywords) {
     return found; 
 }
 
+function handleDialog(senderID, text) {
+    
+    if (currentUserDialogs[senderID].action == "zeltlager") {
+        
+        if (currentUserDialogs[senderID].step == "first_name") {
+            
+            currentUserDialogs[senderID].first_name = text;
+            currentUserDialogs[senderID].step = "last_name";
+            console.log(currentUserDialogs[senderID]);
+            
+            sendTextMessage(senderID, "Okay. Und jetzt den Nachnamen.");
+            return;
+        }
+        
+        if (currentUserDialogs[senderID].step == "last_name") {
+            
+            currentUserDialogs[senderID].last_name = text;
+            currentUserDialogs[senderID].step = "schwimmer";
+            console.log(currentUserDialogs[senderID]);
+            
+            sendTextMessage(senderID, "Okay. Wie alt ist "+ currentUserDialogs[senderID].first_name + "?");
+            return;
+        }
+        
+        if (currentUserDialogs[senderID].step == "schwimmer") {
+            
+            currentUserDialogs[senderID].age = text;
+            currentUserDialogs[senderID].step = "finished";
+            console.log(currentUserDialogs[senderID]);
+            
+            sendMessageWithButtons(senderID, "Kann "+ currentUserDialogs[senderID].first_name + " schwimmen?", [{title: "Ja", action: "schwimmer_ja"}, {title: "Nein", action: "schwimmer_nein"}]);
+            return;
+        }
+        
+        if (currentUserDialogs[senderID].step == "finished") {
+            
+            if (text == "schwimmer_ja") {
+                currentUserDialogs[senderID].schwimmer = true;
+            }
+            
+            if (text == "schwimmer_nein") {
+                currentUserDialogs[senderID].schwimmer = false;
+            }
+            
+            
+            console.log("NEUE ZELTLAGER ANMELDUNG:", currentUserDialogs[senderID]);
+            
+            sendTextMessage(senderID, "Alles klar. " + currentUserDialogs[senderID].first_name + " wurde angemeldet.");
+            
+            delete currentUserDialogs[senderID];
+            console.log(currentUserDialogs[senderID]);
+            return;
+        }
+    }
+}
+
 function receivedMessage(event) {
     var senderID = event.sender.id;
     var recipientID = event.recipient.id;
@@ -232,72 +305,76 @@ function receivedMessage(event) {
     var message = event.message;
     console.log('received message: "' + message.text + '"');
     
-    var text = message.text.toLowerCase();
+    if (currentUserDialogs.hasOwnProperty(senderID)) {
+        handleDialog(senderID, message.text);
+    } else {
     
-    if (matchesArray(text, ['hallo', 'hi', 'servus', 'griazi', 'guten tag'])) {
-        typing(senderID, 'on');
+        var text = message.text.toLowerCase();
         
-        request('https://graph.facebook.com/v2.6/' + senderID + '?fields=first_name,last_name,gender&access_token=' + PAGE_ACCESS_TOKEN, function(error, response, body) {
-            if (!error && response.statusCode == 200) {
-                let profile = JSON.parse(body);
-                sendTextMessage(senderID, "Hallo " + profile.first_name);
-                typing(senderID, 'off');
-            }
-        });
-    }
-    
-    if (matchesArray(text, ['termine', 'veranstaltungen', 'events', 'geplant', 'steht an'])) {
-        console.log('termine received');
-        
-        typing(senderID, 'on');
-        
-        request('https://kolping-dietfurt.de/api/termine', function(error, response, body){
-            if (!error && response.statusCode == 200) {
-                let termine = JSON.parse(body);
-                
-                
-                if (matchesArray(text, ['mehr'])) {
-                    sendTextMessage(senderID, 'Hier sind alle verfügbaren Termine:');
-                    sendTermine(senderID, termine, 100, 5);
-                } else {
-                    sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
-                    sendTermine(senderID, termine);    
+        if (matchesArray(text, ['hallo', 'hi', 'servus', 'griazi', 'guten tag'])) {
+            typing(senderID, 'on');
+            
+            request('https://graph.facebook.com/v2.6/' + senderID + '?fields=first_name,last_name,gender&access_token=' + PAGE_ACCESS_TOKEN, function(error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    let profile = JSON.parse(body);
+                    sendTextMessage(senderID, "Hallo " + profile.first_name);
+                    typing(senderID, 'off');
                 }
-                
-                typing(senderID, 'off');
-            } else {
-                console.log('error getting termine from kolping-dietfurt api');
-                console.error(error);
-            }
-        });
-    }
-    
-    if (matchesArray(text, ['wetter', 'regnet', 'sonnig', 'warm', 'kalt'])) {
-        typing(senderID, 'on');
-        request('http://api.openweathermap.org/data/2.5/weather?q=Dietfurt&units=metric&lang=de&appid=690112b1a907e822d6c496390fd4fed4', function(error, response, body) {
-            if (!error && response.statusCode == 200) {
-                let weather = JSON.parse(body);
-                sendTextMessage(senderID, 'Das Wetter in Dietfurt ist zurzeit ' + weather.weather[0].description + ' bei Temperaturen zwischen ' + weather.main.temp_min + '°C und ' + weather.main.temp_max + '°C.');
-                typing(senderID, 'off');
-            } else {
-                console.log('error getting weather from openweathermap.org');
-                console.error(error);
-            }
-        });
-    }
-    
-    if (matchesArray(text, ['vorstand', 'vorsitzender'])) {
-        sendTextMessage(senderID, "Wir haben zurzeit keinen Vorsitzenden sondern ein Leitungsteam bestehend aus: Nikolaus Landa, Simone Kuffer und Lukas Schöls.")
-        sendTextMessage(senderID, "Alle Vorstandschaftsmitglieder findest du hier: https://kolping-dietfurt.de/vorstandschaft");
-    }
-    
-    if (matchesArray(text, ['zeltlager'])) {
-        sendMessageWithButtons(senderID, "Möchten Sie jemanden zum Zeltlager anmelden?", [{title: "Ja", action: "zeltlageranmeldung"}]);
+            });
+        }
+        
+        if (matchesArray(text, ['termine', 'veranstaltungen', 'events', 'geplant', 'steht an'])) {
+            console.log('termine received');
+            
+            typing(senderID, 'on');
+            
+            request('https://kolping-dietfurt.de/api/termine', function(error, response, body){
+                if (!error && response.statusCode == 200) {
+                    let termine = JSON.parse(body);
+                    
+                    
+                    if (matchesArray(text, ['mehr'])) {
+                        sendTextMessage(senderID, 'Hier sind alle verfügbaren Termine:');
+                        sendTermine(senderID, termine, 100, 5);
+                    } else {
+                        sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
+                        sendTermine(senderID, termine);    
+                    }
+                    
+                    typing(senderID, 'off');
+                } else {
+                    console.log('error getting termine from kolping-dietfurt api');
+                    console.error(error);
+                }
+            });
+        }
+        
+        if (matchesArray(text, ['wetter', 'regnet', 'sonnig', 'warm', 'kalt'])) {
+            typing(senderID, 'on');
+            request('http://api.openweathermap.org/data/2.5/weather?q=Dietfurt&units=metric&lang=de&appid=690112b1a907e822d6c496390fd4fed4', function(error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    let weather = JSON.parse(body);
+                    sendTextMessage(senderID, 'Das Wetter in Dietfurt ist zurzeit ' + weather.weather[0].description + ' bei Temperaturen zwischen ' + weather.main.temp_min + '°C und ' + weather.main.temp_max + '°C.');
+                    typing(senderID, 'off');
+                } else {
+                    console.log('error getting weather from openweathermap.org');
+                    console.error(error);
+                }
+            });
+        }
+        
+        if (matchesArray(text, ['vorstand', 'vorsitzender'])) {
+            sendTextMessage(senderID, "Wir haben zurzeit keinen Vorsitzenden sondern ein Leitungsteam bestehend aus: Nikolaus Landa, Simone Kuffer und Lukas Schöls.")
+            sendTextMessage(senderID, "Alle Vorstandschaftsmitglieder findest du hier: https://kolping-dietfurt.de/vorstandschaft");
+        }
+        
+        if (matchesArray(text, ['zeltlager'])) {
+            sendMessageWithButtons(senderID, "Möchtest du jemanden zum Zeltlager anmelden?", [{title: "Ja", action: "zeltlageranmeldung"}]);
+        }
     }
 }
 
 function sendMessageWithButtons(recipientId, message, buttons) {
-    sendTextMessage(recipientId, message);
     var messageData = {
         recipient: {
             id: recipientId
@@ -306,6 +383,7 @@ function sendMessageWithButtons(recipientId, message, buttons) {
             attachment: {
                 type: "template",
                 payload: {
+                    text: message,
                     template_type: "button",
                     buttons: [],
                 }
@@ -317,10 +395,8 @@ function sendMessageWithButtons(recipientId, message, buttons) {
         messageData.message.attachment.payload.buttons.push({
             type: "postback",
             title: button.title,
-            payload: {
-                action: button.action
-            }
-        })
+            payload: button.action
+        });
     });
 
     callSendAPI(messageData);
