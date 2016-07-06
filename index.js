@@ -222,11 +222,13 @@ function receivedMessage(event) {
         request('https://kolping-dietfurt.de/api/termine', function(error, response, body){
             if (!error && response.statusCode == 200) {
                 let termine = JSON.parse(body);
-                sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
+                
                 
                 if (matchesArray(text, ['mehr'])) {
+                    sendTextMessage(senderID, 'Hier sind alle verfügbaren Termine:');
                     sendTermine(senderID, termine, 100, 5);
                 } else {
+                    sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
                     sendTermine(senderID, termine);    
                 }
                 
