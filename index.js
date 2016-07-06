@@ -223,10 +223,12 @@ function receivedMessage(event) {
     
     if (matchesArray(text, ['hallo', 'hi', 'servus', 'griazi', 'guten tag'])) {
         typing(senderID, 'on');
+        
         request('https://graph.facebook.com/v2.6/' + senderID + '?fields=first_name,last_name,gender&access_token=' + PAGE_ACCESS_TOKEN, function(error, response, body) {
             if (!error && response.statusCode == 200) {
                 let profile = JSON.parse(body);
-                console.log(profile);
+                sendTextMessage(senderID, "Hallo " + profile.first_name);
+                typing(senderID, 'off');
             }
         });
     }
