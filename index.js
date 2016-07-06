@@ -213,9 +213,22 @@ function receivedMessage(event) {
                 sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
                 sendTermine(senderID, termine);
                 typing(senderID, 'off');
+            } else {
+                console.log('error getting termine from kolping-dietfurt api');
+                console.error(error);
             }
-        })
-        
+        });
+    }
+    
+    
+    if (matchesArray(text, ['hallo', 'hi', 'servus', 'griazi', 'guten tag'])) {
+        typing(senderID, 'on');
+        request('https://graph.facebook.com/v2.6/' + senderID + '?fields=first_name,last_name,gender&access_token=' + PAGE_ACCESS_TOKEN, function(error, response, body) {
+            if (!error && response.statusCode == 200) {
+                let profile = JSON.parse(body);
+                console.log(profile);
+            }
+        });
     }
 }
 
