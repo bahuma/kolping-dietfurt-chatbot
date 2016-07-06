@@ -297,12 +297,12 @@ function receivedMessage(event) {
 }
 
 function sendMessageWithButtons(recipientId, message, buttons) {
+    sendTextMessage(recipientId, message);
     var messageData = {
         recipient: {
             id: recipientId
         },
         message: {
-            text: message,
             attachment: {
                 type: "template",
                 payload: {
