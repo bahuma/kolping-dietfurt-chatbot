@@ -237,7 +237,7 @@ function receivedMessage(event) {
         request('http://api.openweathermap.org/data/2.5/weather?q=Dietfurt&units=metric&lang=de&appid=690112b1a907e822d6c496390fd4fed4', function(error, response, body) {
             if (!error && response.statusCode == 200) {
                 let weather = JSON.parse(body);
-                sendTextMessage(senderID, 'Das wetter in Dietfurt ist zurzeit ' + weather.weather.description + ' bei Temperaturen zwischen ' + weather.main.temp_min + ' und ' + weather.main.temp_max);
+                sendTextMessage(senderID, 'Das Wetter in Dietfurt ist zurzeit ' + weather.weather[0].description + ' bei Temperaturen zwischen ' + weather.main.temp_min + '°C und ' + weather.main.temp_max + '°C.');
                 typing(senderID, 'off');
             } else {
                 console.log('error getting weather from openweathermap.org');
