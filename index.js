@@ -292,7 +292,6 @@ function handleDialog(senderID, text) {
             sendTextMessage(senderID, "Alles klar. " + currentUserDialogs[senderID].first_name + " wurde angemeldet.");
             
             delete currentUserDialogs[senderID];
-            console.log(currentUserDialogs[senderID]);
             return;
         }
     }
