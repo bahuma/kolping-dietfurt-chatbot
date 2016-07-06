@@ -224,7 +224,7 @@ function receivedMessage(event) {
                 let termine = JSON.parse(body);
                 sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
                 
-                if (matchesArray(text, 'mehr')) {
+                if (matchesArray(text, ['mehr'])) {
                     sendTermine(senderID, termine, 100, 5);
                 } else {
                     sendTermine(senderID, termine);    
