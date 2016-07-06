@@ -245,6 +245,11 @@ function receivedMessage(event) {
             }
         });
     }
+    
+    if (matchesArray(text, ['vorstand', 'vorsitzender'])) {
+        sendTextMessage(senderID, "Wir haben zurzeit keinen Vorsitzenden sondern ein Leitungsteam bestehend aus: Nikolaus Landa, Simone Kuffer und Lukas Schöls.")
+        sendTextMessage(senderID, "Alle Vorstandschaftsmitglieder findest du hier: https://kolping-dietfurt.de/vorstandschaft");
+    }
 }
 
 function sendTermine(recipientID, termine) {
