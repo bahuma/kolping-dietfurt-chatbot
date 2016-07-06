@@ -1,5 +1,11 @@
+'use strict';
+
+// https://github.com/fbsamples/messenger-platform-samples/blob/master/node/app.js
+
 const express = require('express');
 const bodyParser = require('body-parser');
+const crypto = require('crypto');
+const request = require('request');
 
 const app = express();
 
@@ -108,16 +114,130 @@ function verifyRequestSignature(req, res, buf) {
 }
 
 
+/*
+ * Send a text message using the Send API.
+ *
+ */
+function sendTextMessage(recipientId, messageText) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: messageText
+    }
+  };
+
+  callSendAPI(messageData);
+}
 
 
+
+/*
+ * Call the Send API. The message data goes in the body. If successful, we'll 
+ * get the message id in a response 
+ *
+ */
+function callSendAPI(messageData) {
+  request({
+    uri: 'https://graph.facebook.com/v2.6/me/messages',
+    qs: { access_token: PAGE_ACCESS_TOKEN },
+    method: 'POST',
+    json: messageData
+
+  }, function (error, response, body) {
+    if (!error && response.statusCode == 200) {
+      var recipientId = body.recipient_id;
+      var messageId = body.message_id;
+
+      console.log("Successfully sent generic message with id %s to recipient %s", 
+        messageId, recipientId);
+    } else {
+      console.error("Unable to send message.");
+      console.error(response);
+      console.error(error);
+    }
+  });  
+}
+
+function matchesArray(message, keywords) {
+    let found = false;
+    
+    keywords.forEach(function(keyword) {
+        console.log(keyword, message.indexOf(keyword));
+        if (message.indexOf(keyword) !== -1) {
+            found = true;
+        }
+    });
+    
+    return found; 
+}
 
 function receivedMessage(event) {
     var senderID = event.sender.id;
     var recipientID = event.recipient.id;
     var timeOfMessage = event.timestamp;
     var message = event.message;
+    console.log('received message');
+    
+    var text = message.text.toLowerCase();
+    
+    if (matchesArray(text, ['termine', 'veranstaltungen', 'events', 'geplant', 'steht an'])) {
+        console.log('termine received');
+        request('https://kolping-dietfurt.de/api/termine', function(error, response, body){
+            if (!error && response.statusCode == 200) {
+                let termine = JSON.parse(body);
+                sendTextMessage(senderID, 'Hier sind die Termine der nächsten Zeit:');
+                sendTermine(senderID, termine)
+            }
+        })
+        
+    }
 
     console.log(message);
+}
+
+function sendTermine(recipientID, termine) {
+    let messageData = {
+        recipient: {
+            id: recipientID
+        },
+        message: {
+            attachment: {
+                type: "template",
+                payload: {
+                    template_type: "generic",
+                    elements: []
+                }
+            }
+        }
+    };
+    
+    termine.forEach(function(termin, index) {
+        // Limit to 5 entries
+        if (index < 5) {
+            var terminEntry = {
+                title: termin.title,
+                subtitle: termin.date,
+                item_url: termin.url,
+                buttons: [
+                    {
+                        type: "web_url",
+                        url: termin.url,
+                        title: "Mehr Infos"
+                    }    
+                ]
+            };
+            
+            if (termin.hasOwnProperty('image')) {
+                terminEntry.image_url = termin.image;
+            }
+            
+            messageData.message.attachment.payload.elements.push(terminEntry);
+        }
+    });
+    
+    callSendAPI(messageData);
 }
 
 
