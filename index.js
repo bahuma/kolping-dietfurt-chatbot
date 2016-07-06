@@ -282,11 +282,11 @@ function sendTermine(recipientID, termine, limit, start) {
         }
     };
     
-    if (start !== 0) {
+    if (start == 0) {
         messageData.message.quick_replies = [
             {
                 content_type: "text",
-                title: "Zeige mir mehr Termine",
+                title: "Mehr Termine",
                 payload: "TEST"
             }
         ];
