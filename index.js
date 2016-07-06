@@ -202,6 +202,18 @@ function receivedMessage(event) {
     
     var text = message.text.toLowerCase();
     
+    if (matchesArray(text, ['hallo', 'hi', 'servus', 'griazi', 'guten tag'])) {
+        typing(senderID, 'on');
+        
+        request('https://graph.facebook.com/v2.6/' + senderID + '?fields=first_name,last_name,gender&access_token=' + PAGE_ACCESS_TOKEN, function(error, response, body) {
+            if (!error && response.statusCode == 200) {
+                let profile = JSON.parse(body);
+                sendTextMessage(senderID, "Hallo " + profile.first_name);
+                typing(senderID, 'off');
+            }
+        });
+    }
+    
     if (matchesArray(text, ['termine', 'veranstaltungen', 'events', 'geplant', 'steht an'])) {
         console.log('termine received');
         
@@ -216,19 +228,6 @@ function receivedMessage(event) {
             } else {
                 console.log('error getting termine from kolping-dietfurt api');
                 console.error(error);
-            }
-        });
-    }
-    
-    
-    if (matchesArray(text, ['hallo', 'hi', 'servus', 'griazi', 'guten tag'])) {
-        typing(senderID, 'on');
-        
-        request('https://graph.facebook.com/v2.6/' + senderID + '?fields=first_name,last_name,gender&access_token=' + PAGE_ACCESS_TOKEN, function(error, response, body) {
-            if (!error && response.statusCode == 200) {
-                let profile = JSON.parse(body);
-                sendTextMessage(senderID, "Hallo " + profile.first_name);
-                typing(senderID, 'off');
             }
         });
     }
