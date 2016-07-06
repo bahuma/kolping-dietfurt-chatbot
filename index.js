@@ -38,6 +38,27 @@ app.get('/webhook', function(req, res) {
     }
 });
 
+app.get('/thread-setup', function(req, res) {
+    request({
+        uri: 'https://graph.facebook.com/v2.6/me/thread_settings',
+        qs: { access_token: PAGE_ACCESS_TOKEN },
+        method: 'POST',
+        json: {
+            setting_type: "greeting",
+            greeting: {
+                "text":"Hallo! Wir antworten dir gerne auf deine Fragen. Frage doch einfach nach den nächsten Terminen!"
+            }
+        }
+    }, function(error, response, body) {
+        if (error) {
+            console.error(error);
+            res.send('There was an error. Look at console output.');
+        } else {
+            res.send('Thread was setup\n' + JSON.stringify(body));          
+        }
+    });
+})
+
 
 
 /*
@@ -67,7 +88,7 @@ app.post('/webhook', function (req, res) {
                 } else if (messagingEvent.delivery) {
                     // receivedDeliveryConfirmation(messagingEvent);
                 } else if (messagingEvent.postback) {
-                    // receivedPostback(messagingEvent);
+                    receivedPostback(messagingEvent);
                 } else {
                     console.log("Webhook received unknown messagingEvent: ", messagingEvent);
                 }
@@ -113,6 +134,17 @@ function verifyRequestSignature(req, res, buf) {
     }
 }
 
+
+function receivedPostback(event) {
+    var senderID = event.sender.id;
+    var recipientID = event.recipient.id;
+    var timeOfPostback = event.timestamp;
+    var payload = event.postback.payload;
+    
+    if (payload.action == "zeltlageranmeldung") {
+        sendTextMessage(senderID, "Ok. Dazu brauchen wir einige Daten. Sag uns doch bitte zuerst den Vornamen der Person die du anmelden möchten.");
+    }
+}
 
 /*
  * Send a text message using the Send API.
@@ -258,7 +290,43 @@ function receivedMessage(event) {
         sendTextMessage(senderID, "Wir haben zurzeit keinen Vorsitzenden sondern ein Leitungsteam bestehend aus: Nikolaus Landa, Simone Kuffer und Lukas Schöls.")
         sendTextMessage(senderID, "Alle Vorstandschaftsmitglieder findest du hier: https://kolping-dietfurt.de/vorstandschaft");
     }
+    
+    if (matchesArray(text, ['zeltlager'])) {
+        sendMessageWithButtons(senderID, "Möchten Sie jemanden zum Zeltlager anmelden?", [{title: "Ja", action: "zeltlageranmeldung"}]);
+    }
 }
+
+function sendMessageWithButtons(recipientId, message, buttons) {
+    var messageData = {
+        recipient: {
+            id: recipientId
+        },
+        message: {
+            text: message,
+            attachment: {
+                type: "template",
+                payload: {
+                    template_type: "button",
+                    buttons: [],
+                }
+            }
+        }
+    };
+    
+    buttons.forEach(function(button){
+        messageData.message.attachment.payload.buttons.push({
+            type: "postback",
+            title: button.title,
+            payload: {
+                action: button.action
+            }
+        })
+    });
+
+    callSendAPI(messageData);
+}
+
+
 
 function sendTermine(recipientID, termine, limit, start) {
     if (!limit) {
