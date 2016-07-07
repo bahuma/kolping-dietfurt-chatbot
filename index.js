@@ -310,7 +310,7 @@ function receivedMessage(event) {
     
         var text = message.text.toLowerCase();
         
-        if (matchesArray(text, ['hallo', 'hi', 'servus', 'griazi', 'guten tag'])) {
+        if (matchesArray(text, ['hallo', 'servus', 'griazi', 'guten tag'])) {
             typing(senderID, 'on');
             
             request('https://graph.facebook.com/v2.6/' + senderID + '?fields=first_name,last_name,gender&access_token=' + PAGE_ACCESS_TOKEN, function(error, response, body) {
